@@ -656,7 +656,7 @@
     
     <!-- Subtítulo / Versão do Painel (Texto Cinza e Discreto abaixo da logo) -->
     <p class="brand-subtitle" style="margin: 0; padding: 0; font-size: 0.875rem; color: #6E6E73; font-weight: 500; letter-spacing: 0.3px;">
-        PAINEL ADMINISTRATIVO vModDispatch_2407.3
+        PAINEL ADMINISTRATIVO vModDispatch_2407.4
     </p>
 
 </div>
@@ -2777,26 +2777,27 @@ function alternarCampoEmpresa(valorAcesso) {
 
 
 // Motor emissor de Toasts amigáveis na Interface
-function mostrarToastAviso(mensagem) {
+// Motor emissor de Toasts amigáveis na Interface (Versão Anti-Conflito)
+function mostrarToastAviso(mensagemOriginalDoBackend) {
   const container = document.getElementById("toast-container");
   if (!container) return;
 
   const toast = document.createElement("div");
   toast.className = "toast-card";
   
-  // Trata e converte os caracteres de quebra de linha (\n) do Apps Script para HTML
-  const mensagem Formatada = mensagem.replace(/\n/g, "<br>");
+  // Nome único e isolado para evitar o erro de re-declaração no console
+  const _textoHigienizadoDoToast = (mensagemOriginalDoBackend || "").toString().replace(/\n/g, "<br>");
   
   toast.innerHTML = `
     <div style="font-weight: 600; color: #8A05BE; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
       <span>⚠️ FILTRO DE SEGURANÇA</span>
     </div>
-    <div>${mensagemFormatada}</div>
+    <div>${_textoHigienizadoDoToast}</div>
   `;
 
   container.appendChild(toast);
 
-  // Gatilho de saída automatica após 6 segundos
+  // Gatilho de saída automática após 6 segundos
   setTimeout(() => {
     toast.classList.add("fadeOut");
     toast.addEventListener("animationend", () => {
@@ -2804,6 +2805,7 @@ function mostrarToastAviso(mensagem) {
     });
   }, 6000);
 }
+
 
 		
     </script>
