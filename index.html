@@ -656,7 +656,7 @@
     
     <!-- Subtítulo / Versão do Painel (Texto Cinza e Discreto abaixo da logo) -->
     <p class="brand-subtitle" style="margin: 0; padding: 0; font-size: 0.875rem; color: #6E6E73; font-weight: 500; letter-spacing: 0.3px;">
-        PAINEL ADMINISTRATIVO vModDispatch_2407.4
+        PAINEL ADMINISTRATIVO vModDispatch_2407.5
     </p>
 
 </div>
@@ -1086,16 +1086,19 @@ function alternarBarramentoEAtivarFiltros() {
  console.log(`[INTERFACE] Todos os controles operacionais e o combo de Status foram ativados.`);
  
  // CONEXÃO COM O BARRAMENTO REGIONAL VIA CALLBACK JSONP
+ // CONEXÃO COM O BARRAMENTO REGIONAL VIA CALLBACK JSONP
  const callbackFiltrosName = "cbFiltrosDashboard_" + Date.now();
  
  window[callbackFiltrosName] = function(resposta) {
    if (resposta && resposta.success) {
+     
+     // =======================================================================
+     // 🎯 GATILHO COMPORTAMENTAL: Dispara o Toast amigável a cada troca de UF
+     // =======================================================================
+     if (resposta.avisoFiltro && resposta.avisoFiltro !== "") {
+       mostrarToastAviso(resposta.avisoFiltro);
+     }
 
-    // Alerta cirúrgico via Toast
-    if (resposta.avisoFiltro && resposta.avisoFiltro !== "") {
-      mostrarToastAviso(resposta.avisoFiltro);
-    }
-	   
      const nomeEmpresaDoUsuario = (localStorage.getItem("user_empresa") || "").toString().trim().toUpperCase();
      
      // 1. POPULA E VALIDA O COMBO DE TRANSPORTADORA
