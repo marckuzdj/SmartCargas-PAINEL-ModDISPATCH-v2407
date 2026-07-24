@@ -608,7 +608,7 @@
     
     <!-- Subtítulo / Versão do Painel (Texto Cinza e Discreto abaixo da logo) -->
     <p class="brand-subtitle" style="margin: 0; padding: 0; font-size: 0.875rem; color: #6E6E73; font-weight: 500; letter-spacing: 0.3px;">
-        PAINEL ADMINISTRATIVO vModDispatch_2407.1
+        PAINEL ADMINISTRATIVO vModDispatch_2407.2
     </p>
 
 </div>
@@ -979,163 +979,169 @@ let ENDPOINT_REGIONAL_ATIVO = "";
  * LÓGICA DE TRANSIÇÃO: Chaveia o barramento de rede, busca dicionários e destrava os controles
  */
 /**
- * LÓGICA DE TRANSIÇÃO: Chaveia o barramento de rede, busca dicionários e destrava os controles
- */
+/*
+* LÓGICA DE TRANSIÇÃO: Chaveia o barramento de rede, busca dicionários e 
+destrava os controles
+*/
 function alternarBarramentoEAtivarFiltros() {
-  const ufSelecionada = document.getElementById("filtroUF").value;
-  const selectTransp = document.getElementById("filtroTransp");
-  const selectOperador = document.getElementById("filtroOperador");
-  const terminal = document.getElementById("terminalMonitor");
-
-  // 🔍 Procure por este bloco e faça a alteração cirúrgica:
-  if (!ufSelecionada) return;
-
-  // 🎯 ATUALIZAÇÃO: Altera o indicador visual para o spinner giratório roxo
-  document.getElementById("kpiTotalRomaneios").innerHTML = '<div class="kpi-loading-spinner"></div>';
-  document.getElementById("kpiConcluidos").innerHTML = '<div class="kpi-loading-spinner"></div>';
-  document.getElementById("kpiParciais").innerHTML = '<div class="kpi-loading-spinner"></div>';
-  document.getElementById("kpiPendentes").innerHTML = '<div class="kpi-loading-spinner"></div>';
-
-  // 1. CHAVEAMENTO DINÂMICO DE ENDPOINT
-  if (REGIONAIS_WEB_APPS[ufSelecionada]) {
-    ENDPOINT_REGIONAL_ATIVO = REGIONAIS_WEB_APPS[ufSelecionada];
-    console.log(`[BARRAMENTO] Conexão redirecionada para a regional: ${ufSelecionada}`);
-    
-    if (terminal) {
-      terminal.value += `\n\n[${new Date().toLocaleTimeString()}] -> Barramento de rede chaveado para a regional: ${ufSelecionada}`;
-      terminal.value += `\n[REDE] -> Conectando a filial. Sincronizando tabelas...`;
-      terminal.scrollTop = terminal.scrollHeight;
-    }
-  } else {
-    alert(`⚠️ O barramento para a UF ${ufSelecionada} ainda não foi cadastrado no dicionário mestre de rede.`);
-    return;
-  }
-
-  // Feedback visual de carregamento nos combos enquanto a rede responde
-  if (selectTransp) selectTransp.innerHTML = '<option value="" disabled selected>Carregando...</option>';
-  if (selectOperador) selectOperador.innerHTML = '<option value="" disabled selected>Carregando...</option>';
-
-  // Destrava imediatamente os campos de digitação independente da rede para o operador ganhar tempo
-  document.getElementById("filtroDocumento").disabled = false;
-  document.getElementById("filtroDataInicial").disabled = false;
-  document.getElementById("filtroDataFinal").disabled = false;
-  document.getElementById("btnExtrairBase").disabled = false;
-
-  // ===================================================================
-  // 🎯 INJEÇÃO CIRÚRGICA: Destrava o segundo par de datas no acionamento da UF
-  // ===================================================================
-  document.getElementById("filtroConfInicial").disabled = false;
-  document.getElementById("filtroConfFinal").disabled = false;
-
-  // Destrava o novo Combobox de Status do Romaneio
-  const elStatusCombo = document.getElementById("filtroStatusRomaneio");
-  if (elStatusCombo) elStatusCombo.disabled = false;
-
-  console.log(`[INTERFACE] Todos os controles operacionais e o combo de Status foram ativados.`);
-
-  // CONEXÃO COM O BARRAMENTO REGIONAL VIA CALLBACK JSONP
-  const callbackFiltrosName = "cbFiltrosDashboard_" + Date.now();
-
-  // Dentro do window[callbackFiltrosName] = function(resposta) { ...
-  window[callbackFiltrosName] = function(resposta) {
-    if (resposta && resposta.success) {
-      
-      // ✨ ALINHAMENTO COM A COLUNA E: Captura direto da chave oficial gravada no login
-      const nomeEmpresaDoUsuario = (localStorage.getItem("user_empresa") || "").toString().trim().toUpperCase();
-
-      // 1. POPULA E VALIDA O COMBO DE TRANSPORTADORA
-      if (selectTransp) {
-        if (PERFIL_FILTRO_DASHBOARD === "TRANSPORTADOR" && nomeEmpresaDoUsuario) {
-          selectTransp.innerHTML = `<option value="${nomeEmpresaDoUsuario}" selected>${nomeEmpresaDoUsuario}</option>`;
-// ... resto da lógica segue idêntica ...
-          selectTransp.disabled = true; // Mantém travado conforme seu requisito
-          console.log(`[SEGURANÇA] Combo Transportadora bloqueado estritamente para: ${nomeEmpresaDoUsuario}`);
-        } else {
-          // Perfil TELEFONICA ou livre: comportamento padrão irrestrito
-          selectTransp.innerHTML = '<option value="" selected>TODAS</option>';
-          if (resposta.transportadoras && resposta.transportadoras.length > 0) {
-            resposta.transportadoras.forEach(t => {
-              selectTransp.innerHTML += `<option value="${t}">${t.toUpperCase()}</option>`;
-            });
-          }
-          selectTransp.disabled = false;
-        }
-      }
-
-      // 2. POPULA E VALIDA O COMBO DE OPERADOR LOGÍSTICO
-      if (selectOperador) {
-        // 🔒 REGRA DE RESTRIÇÃO DO OPERADOR LOGÍSTICO
-        if (PERFIL_FILTRO_DASHBOARD === "OPERADOR" && nomeEmpresaDoUsuario) {
-          selectOperador.innerHTML = `<option value="${nomeEmpresaDoUsuario}" selected>${nomeEmpresaDoUsuario}</option>`;
-          selectOperador.disabled = true; // Mantém travado conforme seu requisito
-          console.log(`[SEGURANÇA] Combo Operador bloqueado estritamente para: ${nomeEmpresaDoUsuario}`);
-        } else {
-          // Perfil TELEFONICA ou livre: comportamento padrão irrestrito
-          selectOperador.innerHTML = '<option value="" selected>TODOS</option>';
-          if (resposta.operadores && resposta.operadores.length > 0) {
-            resposta.operadores.forEach(o => {
-              selectOperador.innerHTML += `<option value="${o}">${o.toUpperCase()}</option>`;
-            });
-          }
-          selectOperador.disabled = false;
-        }
-      }
-
-      // ===================================================================
-      // ALIMENTAÇÃO DINÂMICA DOS INDICADORES DE TOPO (KPIs)
-      // ===================================================================
-      const elKpiTotal = document.getElementById("kpiTotalRomaneios");
-      const elKpiConcluidos = document.getElementById("kpiConcluidos");
-      const elKpiParciais = document.getElementById("kpiParciais");
-      const elKpiPendentes = document.getElementById("kpiPendentes");
-
-      if (elKpiTotal) elKpiTotal.innerText = resposta.kpiTotal || 0;
-      if (elKpiConcluidos) elKpiConcluidos.innerText = resposta.kpiConcluidos || 0;
-      if (elKpiParciais) elKpiParciais.innerText = resposta.kpiParciais || 0;
-      if (elKpiPendentes) elKpiPendentes.innerText = resposta.kpiPendentes || 0;
-
-      if (terminal) {
-        let msgLog = `\n[SUCESSO] -> Sincronismo concluido.`;
-        if (PERFIL_FILTRO_DASHBOARD) {
-          msgLog += ` Perfil ${PERFIL_FILTRO_DASHBOARD} restrito aplicado com sucesso na tela corporativa.`;
-        } else {
-          msgLog += ` Carregadas ${resposta.transportadoras.length} Transportadoras e ${resposta.operadores.length} Operadores mapeados.`;
-        }
-        terminal.value += msgLog;
-        terminal.value += `\n[MÉTRICAS] -> Total de ${resposta.kpiTotal || 0} Romaneios identificados na regional.`;
-        terminal.scrollTop = terminal.scrollHeight;
-      }
-    } else {
-      // Fallback de limpeza em caso de falha de dados
-      document.getElementById("kpiTotalRomaneios").innerText = "0";
-      document.getElementById("kpiConcluidos").innerText = "0";
-      document.getElementById("kpiParciais").innerText = "0";
-      document.getElementById("kpiPendentes").innerText = "0";
-      
-      if (selectTransp) { selectTransp.innerHTML = '<option value="" selected>TODAS</option>'; selectTransp.disabled = false; }
-      if (selectOperador) { selectOperador.innerHTML = '<option value="" selected>TODOS</option>'; selectOperador.disabled = false; }
-    }
-    delete window[callbackFiltrosName];
-  };
-
-  // ✨ CAPTURA SEGURA DOS DADOS LOGADOS PARA FILTRAGEM DOS KPIS
-  const nomeEmpresaFiltro = (localStorage.getItem("user_empresa") || "").toString().trim().toUpperCase();
-  const perfilFiltro = PERFIL_FILTRO_DASHBOARD || "";
-
-  // Dispara o payload de requisição dinâmico injetando as credenciais de restrição logísticas
-  const urlCompletaFiltros = ENDPOINT_REGIONAL_ATIVO + 
-    "?action=buscarFiltrosDinamicosPainel" + 
-    "&dataImportIni=&dataImportFim=&dataConfIni=&dataConfFim=" + 
-    "&perfilFiltro=" + encodeURIComponent(perfilFiltro) +       // 🚀 TRANSMITE O PERFIL (OPERADOR/TRANSPORTADOR)
-    "&empresaFiltro=" + encodeURIComponent(nomeEmpresaFiltro) + // 🚀 TRANSMITE O NOME REAL DA EMPRESA LOGADA
-    "&callback=" + callbackFiltrosName;
-	
-  const scriptFiltrosTag = document.createElement("script");
-  scriptFiltrosTag.src = urlCompletaFiltros;
-  scriptFiltrosTag.async = true;
-  scriptFiltrosTag.onload = function() { if (scriptFiltrosTag.parentNode) document.body.removeChild(scriptFiltrosTag); };
-  document.body.appendChild(scriptFiltrosTag);
-} // <- O fechamento correto da função agora fica estritamente na última linha
+ const ufSelecionada = document.getElementById("filtroUF").value;
+ const selectTransp = document.getElementById("filtroTransp");
+ const selectOperador = document.getElementById("filtroOperador");
+ const terminal = document.getElementById("terminalMonitor");
+ 
+ if (!ufSelecionada) return;
+ 
+ // ATUALIZAÇÃO: Altera o indicador visual para o spinner giratório roxo
+ document.getElementById("kpiTotalRomaneios").innerHTML = '<div class="kpi-loading-spinner"></div>';
+ document.getElementById("kpiConcluidos").innerHTML = '<div class="kpi-loading-spinner"></div>';
+ document.getElementById("kpiParciais").innerHTML = '<div class="kpi-loading-spinner"></div>';
+ document.getElementById("kpiPendentes").innerHTML = '<div class="kpi-loading-spinner"></div>';
+ 
+ // 1. CHAVEAMENTO DINÂMICO DE ENDPOINT
+ if (REGIONAIS_WEB_APPS[ufSelecionada]) {
+   ENDPOINT_REGIONAL_ATIVO = REGIONAIS_WEB_APPS[ufSelecionada];
+   console.log(`[BARRAMENTO] Conexão redirecionada para a regional: ${ufSelecionada}`);
+ 
+   if (terminal) {
+     terminal.value += `\n\n[${new Date().toLocaleTimeString()}] -> Barramento de rede chaveado para a regional: ${ufSelecionada}`;
+     terminal.value += `\n[REDE] -> Conectando a filial. Sincronizando tabelas...`;
+     terminal.scrollTop = terminal.scrollHeight;
+   }
+ } else {
+   alert(`⚠️ O barramento para a UF ${ufSelecionada} ainda não foi cadastrado no dicionário mestre de rede.`);
+   return;
+ }
+ 
+ // Feedback visual de carregamento nos combos enquanto a rede responde
+ if (selectTransp) selectTransp.innerHTML = '<option value="" disabled selected>Carregando...</option>';
+ if (selectOperador) selectOperador.innerHTML = '<option value="" disabled selected>Carregando...</option>';
+ 
+ // Destrava imediatamente os campos de digitação independente da rede para o operador ganhar tempo
+ document.getElementById("filtroDocumento").disabled = false;
+ document.getElementById("filtroDataInicial").disabled = false;
+ document.getElementById("filtroDataFinal").disabled = false;
+ document.getElementById("btnExtrairBase").disabled = false;
+ 
+ // ===================================================================
+ // INJEÇÃO CIRÚRGICA: Destrava o segundo par de datas no acionamento da UF
+ // ===================================================================
+ document.getElementById("filtroConfInicial").disabled = false;
+ document.getElementById("filtroConfFinal").disabled = false;
+ 
+ // Destrava o novo Combobox de Status do Romaneio
+ const elStatusCombo = document.getElementById("filtroStatusRomaneio");
+ if (elStatusCombo) elStatusCombo.disabled = false;
+ console.log(`[INTERFACE] Todos os controles operacionais e o combo de Status foram ativados.`);
+ 
+ // CONEXÃO COM O BARRAMENTO REGIONAL VIA CALLBACK JSONP
+ const callbackFiltrosName = "cbFiltrosDashboard_" + Date.now();
+ 
+ window[callbackFiltrosName] = function(resposta) {
+   if (resposta && resposta.success) {
+     // ALINHAMENTO COM A COLUNA E: Captura direto da chave oficial gravada no login
+     const nomeEmpresaDoUsuario = (localStorage.getItem("user_empresa") || "").toString().trim().toUpperCase();
+     
+     // 1. POPULA E VALIDA O COMBO DE TRANSPORTADORA
+     if (selectTransp) {
+       if (PERFIL_FILTRO_DASHBOARD === "TRANSPORTADOR" && nomeEmpresaDoUsuario) {
+         selectTransp.innerHTML = `<option value="${nomeEmpresaDoUsuario}" selected>${nomeEmpresaDoUsuario}</option>`;
+         selectTransp.disabled = true; // Mantém travado conforme seu requisito
+         console.log(`[SEGURANÇA] Combo Transportadora bloqueado estritamente para: ${nomeEmpresaDoUsuario}`);
+       } else {
+         // Perfil TELEFONICA ou livre: comportamento padrão irrestrito
+         selectTransp.innerHTML = '<option value="" selected>TODAS</option>';
+         if (resposta.transportadoras && resposta.transportadoras.length > 0) {
+           resposta.transportadoras.forEach(t => {
+             selectTransp.innerHTML += `<option value="${t}">${t.toUpperCase()}</option>`;
+           });
+         }
+         selectTransp.disabled = false;
+       }
+     }
+     
+     // 2. POPULA E VALIDA O COMBO DE OPERADOR LOGÍSTICO
+     if (selectOperador) {
+       if (PERFIL_FILTRO_DASHBOARD === "OPERADOR" && nomeEmpresaDoUsuario) {
+         selectOperador.innerHTML = `<option value="${nomeEmpresaDoUsuario}" selected>${nomeEmpresaDoUsuario}</option>`;
+         selectOperador.disabled = true; // Mantém travado conforme seu requisito
+         console.log(`[SEGURANÇA] Combo Operador bloqueado estritamente para: ${nomeEmpresaDoUsuario}`);
+       } else {
+         // Perfil TELEFONICA ou livre: comportamento padrão irrestrito
+         selectOperador.innerHTML = '<option value="" selected>TODOS</option>';
+         if (resposta.operadores && resposta.operadores.length > 0) {
+           resposta.operadores.forEach(o => {
+             selectOperador.innerHTML += `<option value="${o}">${o.toUpperCase()}</option>`;
+           });
+         }
+         selectOperador.disabled = false;
+       }
+     }
+     
+     // ===================================================================
+     // ALIMENTAÇÃO DINÂMICA DOS INDICADORES DE TOPO (KPIs)
+     // ===================================================================
+     const elKpiTotal = document.getElementById("kpiTotalRomaneios");
+     const elKpiConcluidos = document.getElementById("kpiConcluidos");
+     const elKpiParciais = document.getElementById("kpiParciais");
+     const elKpiPendentes = document.getElementById("kpiPendentes");
+     
+     if (elKpiTotal) elKpiTotal.innerText = resposta.kpiTotal || 0;
+     if (elKpiConcluidos) elKpiConcluidos.innerText = resposta.kpiConcluidos || 0;
+     if (elKpiParciais) elKpiParciais.innerText = resposta.kpiParciais || 0;
+     if (elKpiPendentes) elKpiPendentes.innerText = resposta.kpiPendentes || 0;
+     
+     if (terminal) {
+       let msgLog = `\n[SUCESSO] -> Sincronismo concluido.`;
+       if (PERFIL_FILTRO_DASHBOARD) {
+         msgLog += ` Perfil ${PERFIL_FILTRO_DASHBOARD} restrito aplicado com sucesso na tela corporativa.`;
+       } else {
+         msgLog += ` Carregadas ${resposta.transportadoras.length} Transportadoras e ${resposta.operadores.length} Operadores mapeados.`;
+       }
+       terminal.value += msgLog;
+       terminal.value += `\n[MÉTRICAS] -> Total de ${resposta.kpiTotal || 0} Romaneios identificados na regional.`;
+       terminal.scrollTop = terminal.scrollHeight;
+     }
+   } else {
+     // Fallback de limpeza em caso de falha de dados
+     document.getElementById("kpiTotalRomaneios").innerText = "0";
+     document.getElementById("kpiConcluidos").innerText = "0";
+     document.getElementById("kpiParciais").innerText = "0";
+     document.getElementById("kpiPendentes").innerText = "0";
+     
+     if (selectTransp) { selectTransp.innerHTML = '<option value="" selected>TODAS</option>'; selectTransp.disabled = false; }
+     if (selectOperador) { selectOperador.innerHTML = '<option value="" selected>TODOS</option>'; selectOperador.disabled = false; }
+   }
+   delete window[callbackFiltrosName];
+ };
+ 
+ // CAPTURA SEGURA DOS DADOS LOGADOS PARA FILTRAGEM DOS KPIS
+ const nomeEmpresaFiltro = (localStorage.getItem("user_empresa") || "").toString().trim().toUpperCase();
+ const perfilFiltro = PERFIL_FILTRO_DASHBOARD || "";
+ 
+ // 🛠️ AJUSTE DINÂMICO CRÍTICO: Pega os valores reais das caixas de data da tela do FRONT-PAINEL
+ // Se o operador não preencheu, elas vão vazias e o backend assume a data de Hoje automaticamente!
+ const fDataImpIni = document.getElementById("filtroDataInicial") ? document.getElementById("filtroDataInicial").value : "";
+ const fDataImpFim = document.getElementById("filtroDataFinal") ? document.getElementById("filtroDataFinal").value : "";
+ const fDataConfIni = document.getElementById("filtroConfInicial") ? document.getElementById("filtroConfInicial").value : "";
+ const fDataConfFim = document.getElementById("filtroConfFinal") ? document.getElementById("filtroConfFinal").value : "";
+ 
+ // Dispara o payload de requisição dinâmico injetando as credenciais de restrição logísticas
+ const urlCompletaFiltros = ENDPOINT_REGIONAL_ATIVO + 
+  "?action=buscarFiltrosDinamicosPainel" + 
+  "&dataImportIni=" + encodeURIComponent(fDataImpIni) + 
+  "&dataImportFim=" + encodeURIComponent(fDataImpFim) + 
+  "&dataConfIni=" + encodeURIComponent(fDataConfIni) + 
+  "&dataConfFim=" + encodeURIComponent(fDataConfFim) + 
+  "&perfilFiltro=" + encodeURIComponent(perfilFiltro) + 
+  "&empresaFiltro=" + encodeURIComponent(nomeEmpresaFiltro) + 
+  "&callback=" + callbackFiltrosName;
+  
+ const scriptFiltrosTag = document.createElement("script");
+ scriptFiltrosTag.src = urlCompletaFiltros;
+ scriptFiltrosTag.async = true;
+ scriptFiltrosTag.onload = function() { if (scriptFiltrosTag.parentNode) document.body.removeChild(scriptFiltrosTag); };
+ document.body.appendChild(scriptFiltrosTag);
+}// <- O fechamento correto da função agora fica estritamente na última linha
         
 // ==================================================================
 // 1. CONFIGURAÇÃO DE ENDPOINT DIRETO DO BANCO DE DADOS
