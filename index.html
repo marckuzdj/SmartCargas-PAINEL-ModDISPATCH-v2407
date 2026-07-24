@@ -656,7 +656,7 @@
     
     <!-- Subtítulo / Versão do Painel (Texto Cinza e Discreto abaixo da logo) -->
     <p class="brand-subtitle" style="margin: 0; padding: 0; font-size: 0.875rem; color: #6E6E73; font-weight: 500; letter-spacing: 0.3px;">
-        PAINEL ADMINISTRATIVO vModDispatch_2407.6
+        PAINEL ADMINISTRATIVO vModDispatch_2407.7
     </p>
 
 </div>
@@ -883,7 +883,7 @@
 				Regional <span class="label-obrigatoria-vermelha">*OBRIGATÓRIO*</span>
 			</label>
             <!-- Injetado o gatilho onchange para disparar a troca de barramento -->
-            <select id="filtroUF" class="form-select" onchange="alternarBarramentoEAtivarFiltros()" required>
+            <select id="filtroUF" class="form-select">
                 <option value="" disabled selected>Selecione a Regional</option>
                 <!-- <option value="AL">AL/ALW1</option> -->
                 <!-- <option value="BA">BA/BAW1</option> -->
@@ -2792,13 +2792,13 @@ function mostrarToastAviso(mensagemOriginalDoBackend) {
 
   const toast = document.createElement("div");
   toast.className = "toast-card";
+  toast.id = "toast_" + Date.now() + "_" + Math.floor(Math.random() * 1000); // <-- ID único garantido
   
-  // Nome único e isolado para evitar o erro de re-declaração no console
   const _textoHigienizadoDoToast = (mensagemOriginalDoBackend || "").toString().replace(/\n/g, "<br>");
-  
+	
   toast.innerHTML = `
     <div style="font-weight: 600; color: #8A05BE; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
-      <span>⚠️ FILTRO DE SEGURANÇA</span>
+      <span>⚠️ FILTRO DE PERFORMANCE</span>
     </div>
     <div>${_textoHigienizadoDoToast}</div>
   `;
@@ -2811,9 +2811,28 @@ function mostrarToastAviso(mensagemOriginalDoBackend) {
     toast.addEventListener("animationend", () => {
       if (toast.parentNode) container.removeChild(toast);
     });
-  }, 6000);
+  }, 8000);
 }
 
+// =======================================================================
+// 🚀 MOTOR GLOBAL DE ESCUTA: GATILHO COMPORTAMENTAL SEGURO PARA TROCA DE UF
+// =======================================================================
+document.addEventListener("change", function(evento) {
+  // Intercepta especificamente o momento em que o operador altera o combobox de UF
+  if (evento.target && evento.target.id === "filtroUF") {
+    const valorSelecionado = evento.target.value;
+    
+    // Se o operador limpou o campo ou selecionou a opção vazia, não faz nada
+    if (!valorSelecionado) return;
+    
+    console.log(`[EVENTO] Troca de UF detectada globalmente para: ${valorSelecionado}`);
+    
+    // Força a execução limpa da rotina mestre de rede e destruição de escopo anterior
+    setTimeout(function() {
+      alternarBarramentoEAtivarFiltros();
+    }, 50);
+  }
+});
 
 		
     </script>
