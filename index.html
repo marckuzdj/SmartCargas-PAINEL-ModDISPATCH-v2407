@@ -656,7 +656,7 @@
     
     <!-- Subtítulo / Versão do Painel (Texto Cinza e Discreto abaixo da logo) -->
     <p class="brand-subtitle" style="margin: 0; padding: 0; font-size: 0.875rem; color: #6E6E73; font-weight: 500; letter-spacing: 0.3px;">
-        PAINEL ADMINISTRATIVO vModDispatch_2407.7
+        PAINEL ADMINISTRATIVO vModDispatch_2407.8
     </p>
 
 </div>
@@ -883,7 +883,7 @@
 				Regional <span class="label-obrigatoria-vermelha">*OBRIGATÓRIO*</span>
 			</label>
             <!-- Injetado o gatilho onchange para disparar a troca de barramento -->
-            <select id="filtroUF" class="form-select">
+            <select id="filtroUF" class="form-select" onchange="alternarBarramentoEAtivarFiltros()">
                 <option value="" disabled selected>Selecione a Regional</option>
                 <!-- <option value="AL">AL/ALW1</option> -->
                 <!-- <option value="BA">BA/BAW1</option> -->
@@ -1035,6 +1035,9 @@ destrava os controles
 * LÓGICA DE TRANSIÇÃO: Chaveia o barramento de rede, busca dicionários e 
 destrava os controles
 */
+/*
+* LÓGICA DE TRANSIÇÃO: Chaveia o barramento de rede e dispara a injeção estática de script
+*/
 function alternarBarramentoEAtivarFiltros() {
  const ufSelecionada = document.getElementById("filtroUF").value;
  const selectTransp = document.getElementById("filtroTransp");
@@ -1043,138 +1046,42 @@ function alternarBarramentoEAtivarFiltros() {
  
  if (!ufSelecionada) return;
  
- // ATUALIZAÇÃO: Altera o indicador visual para o spinner giratório roxo
+ // Feedbacks visuais de carregamento roxo
  document.getElementById("kpiTotalRomaneios").innerHTML = '<div class="kpi-loading-spinner"></div>';
  document.getElementById("kpiConcluidos").innerHTML = '<div class="kpi-loading-spinner"></div>';
  document.getElementById("kpiParciais").innerHTML = '<div class="kpi-loading-spinner"></div>';
  document.getElementById("kpiPendentes").innerHTML = '<div class="kpi-loading-spinner"></div>';
  
- // 1. CHAVEAMENTO DINÂMICO DE ENDPOINT
  if (REGIONAIS_WEB_APPS[ufSelecionada]) {
    ENDPOINT_REGIONAL_ATIVO = REGIONAIS_WEB_APPS[ufSelecionada];
-   console.log(`[BARRAMENTO] Conexão redirecionada para a regional: ${ufSelecionada}`);
- 
+   console.log(`[BARRAMENTO] Direcionado para a filial: ${ufSelecionada}`);
    if (terminal) {
      terminal.value += `\n\n[${new Date().toLocaleTimeString()}] -> Barramento de rede chaveado para a regional: ${ufSelecionada}`;
-     terminal.value += `\n[REDE] -> Conectando a filial. Sincronizando tabelas...`;
      terminal.scrollTop = terminal.scrollHeight;
    }
  } else {
-   alert(`⚠️ O barramento para a UF ${ufSelecionada} ainda não foi cadastrado no dicionário mestre de rede.`);
+   alert(`⚠️ O barramento para a UF ${ufSelecionada} não foi cadastrado.`);
    return;
  }
  
- // Feedback visual de carregamento nos combos enquanto a rede responde
  if (selectTransp) selectTransp.innerHTML = '<option value="" disabled selected>Carregando...</option>';
  if (selectOperador) selectOperador.innerHTML = '<option value="" disabled selected>Carregando...</option>';
  
- // Destrava imediatamente os campos de digitação independente da rede para o operador ganhar tempo
+ // Destrava os controles operacionais
  document.getElementById("filtroDocumento").disabled = false;
  document.getElementById("filtroDataInicial").disabled = false;
  document.getElementById("filtroDataFinal").disabled = false;
- document.getElementById("btnExtrairBase").disabled = false;
- 
- // ===================================================================
- // INJEÇÃO CIRÚRGICA: Destrava o segundo par de datas no acionamento da UF
- // ===================================================================
  document.getElementById("filtroConfInicial").disabled = false;
  document.getElementById("filtroConfFinal").disabled = false;
- 
- // Destrava o novo Combobox de Status do Romaneio
+ document.getElementById("btnExtrairBase").disabled = false;
  const elStatusCombo = document.getElementById("filtroStatusRomaneio");
  if (elStatusCombo) elStatusCombo.disabled = false;
- console.log(`[INTERFACE] Todos os controles operacionais e o combo de Status foram ativados.`);
  
- // CONEXÃO COM O BARRAMENTO REGIONAL VIA CALLBACK JSONP
- // CONEXÃO COM O BARRAMENTO REGIONAL VIA CALLBACK JSONP
- const callbackFiltrosName = "cbFiltrosDashboard_" + Date.now();
- 
- window[callbackFiltrosName] = function(resposta) {
-   if (resposta && resposta.success) {
-     
-     // =======================================================================
-     // 🎯 GATILHO COMPORTAMENTAL: Dispara o Toast amigável a cada troca de UF
-     // =======================================================================
-     if (resposta.avisoFiltro && resposta.avisoFiltro !== "") {
-       mostrarToastAviso(resposta.avisoFiltro);
-     }
-
-     const nomeEmpresaDoUsuario = (localStorage.getItem("user_empresa") || "").toString().trim().toUpperCase();
-     
-     // 1. POPULA E VALIDA O COMBO DE TRANSPORTADORA
-     if (selectTransp) {
-       if (PERFIL_FILTRO_DASHBOARD === "TRANSPORTADOR" && nomeEmpresaDoUsuario) {
-         selectTransp.innerHTML = `<option value="${nomeEmpresaDoUsuario}" selected>${nomeEmpresaDoUsuario}</option>`;
-         selectTransp.disabled = true;
-         console.log(`[SEGURANÇA] Combo Transportadora bloqueado estritamente para: ${nomeEmpresaDoUsuario}`);
-       } else {
-         selectTransp.innerHTML = '<option value="" selected>TODAS</option>';
-         if (resposta.transportadoras && resposta.transportadoras.length > 0) {
-           resposta.transportadoras.forEach(t => {
-             selectTransp.innerHTML += `<option value="${t}">${t.toUpperCase()}</option>`;
-           });
-         }
-         selectTransp.disabled = false;
-       }
-     }
-     
-     // 2. POPULA E VALIDA O COMBO DE OPERADOR LOGÍSTICO
-     if (selectOperador) {
-       if (PERFIL_FILTRO_DASHBOARD === "OPERADOR" && nomeEmpresaDoUsuario) {
-         selectOperador.innerHTML = `<option value="${nomeEmpresaDoUsuario}" selected>${nomeEmpresaDoUsuario}</option>`;
-         selectOperador.disabled = true;
-         console.log(`[SEGURANÇA] Combo Operador bloqueado estritamente para: ${nomeEmpresaDoUsuario}`);
-       } else {
-         selectOperador.innerHTML = '<option value="" selected>TODOS</option>';
-         if (resposta.operadores && resposta.operadores.length > 0) {
-           resposta.operadores.forEach(o => {
-             selectOperador.innerHTML += `<option value="${o}">${o.toUpperCase()}</option>`;
-           });
-         }
-         selectOperador.disabled = false;
-       }
-     }
-     
-     // RENDEREZA KPIs
-     const elKpiTotal = document.getElementById("kpiTotalRomaneios");
-     const elKpiConcluidos = document.getElementById("kpiConcluidos");
-     const elKpiParciais = document.getElementById("kpiParciais");
-     const elKpiPendentes = document.getElementById("kpiPendentes");
-     
-     if (elKpiTotal) elKpiTotal.innerText = resposta.kpiTotal || 0;
-     if (elKpiConcluidos) elKpiConcluidos.innerText = resposta.kpiConcluidos || 0;
-     if (elKpiParciais) elKpiParciais.innerText = resposta.kpiParciais || 0;
-     if (elKpiPendentes) elKpiPendentes.innerText = resposta.kpiPendentes || 0;
-     
-     if (terminal) {
-       let msgLog = `\n[SUCESSO] -> Sincronismo concluido.`;
-       if (PERFIL_FILTRO_DASHBOARD) {
-         msgLog += ` Perfil ${PERFIL_FILTRO_DASHBOARD} restrito aplicado com sucesso na tela corporativa.`;
-       } else {
-         msgLog += ` Carregadas ${resposta.transportadoras.length} Transportadoras e ${resposta.operadores.length} Operadores mapeados.`;
-       }
-       terminal.value += msgLog;
-       terminal.value += `\n[MÉTRICAS] -> Total de ${resposta.kpiTotal || 0} Romaneios identificados na regional.`;
-       terminal.scrollTop = terminal.scrollHeight;
-     }
-   } else {
-     document.getElementById("kpiTotalRomaneios").innerText = "0";
-     document.getElementById("kpiConcluidos").innerText = "0";
-     document.getElementById("kpiParciais").innerText = "0";
-     document.getElementById("kpiPendentes").innerText = "0";
-     
-     if (selectTransp) { selectTransp.innerHTML = '<option value="" selected>TODAS</option>'; selectTransp.disabled = false; }
-     if (selectOperador) { selectOperador.innerHTML = '<option value="" selected>TODOS</option>'; selectOperador.disabled = false; }
-   }
-   delete window[callbackFiltrosName];
- };
- 
- // CAPTURA E CONVERSÃO DE INPUTS PARA FORMATO BR (DD/MM/YYYY)
  // CAPTURA E CONVERSÃO DE INPUTS PARA FORMATO BR (DD/MM/YYYY)
  const formatarInputParaBr = (val) => {
    if (!val) return "";
    const p = val.split("-");
-   return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : "";
+   return p.length === 3 ? `${p}/${p}/${p}` : "";
  };
  
  const nomeEmpresaFiltro = (localStorage.getItem("user_empresa") || "").toString().trim().toUpperCase();
@@ -1185,7 +1092,13 @@ function alternarBarramentoEAtivarFiltros() {
  const fDataConfIni = formatarInputParaBr(document.getElementById("filtroConfInicial") ? document.getElementById("filtroConfInicial").value : "");
  const fDataConfFim = formatarInputParaBr(document.getElementById("filtroConfFinal") ? document.getElementById("filtroConfFinal").value : "");
  
- // 🚀 AJUSTE: Injeção de timestamp anti-cache (&_nocache=) para disparar sempre!
+ // Limpa tags antigas de requisições anteriores para o DOM não acumular lixo
+ const scriptAntigo = document.getElementById("script_filtro_dinamico");
+ if (scriptAntigo && scriptAntigo.parentNode) {
+   scriptAntigo.parentNode.removeChild(scriptAntigo);
+ }
+
+ // 🔥 MONTAGEM COM CALLBACK ESTÁTICO PERMANENTE + TIMESTAMP ANTI-CACHE
  const urlCompletaFiltros = ENDPOINT_REGIONAL_ATIVO + 
   "?action=buscarFiltrosDinamicosPainel" + 
   "&dataImportIni=" + encodeURIComponent(fDataImpIni) + 
@@ -1194,16 +1107,13 @@ function alternarBarramentoEAtivarFiltros() {
   "&dataConfFim=" + encodeURIComponent(fDataConfFim) + 
   "&perfilFiltro=" + encodeURIComponent(perfilFiltro) + 
   "&empresaFiltro=" + encodeURIComponent(nomeEmpresaFiltro) + 
-  "&callback=" + callbackFiltrosName +
-  "&_nocache=" + Date.now(); // <-- Destrói o cache do navegador na raiz
+  "&callback=processarRespostaFiltrosGlobais" + // <-- Nome do callback fixado na memória
+  "&_nocache=" + Date.now();
   
  const scriptFiltrosTag = document.createElement("script");
  scriptFiltrosTag.src = urlCompletaFiltros;
  scriptFiltrosTag.async = true;
- scriptFiltrosTag.id = "script_filtro_dinamico"; // Identificador exclusivo para limpeza de nó
- scriptFiltrosTag.onload = function() { 
-   if (scriptFiltrosTag.parentNode) document.body.removeChild(scriptFiltrosTag); 
- };
+ scriptFiltrosTag.id = "script_filtro_dinamico";
  document.body.appendChild(scriptFiltrosTag);
 }// <- O fechamento correto da função agora fica estritamente na última linha
         
@@ -2815,24 +2725,86 @@ function mostrarToastAviso(mensagemOriginalDoBackend) {
 }
 
 // =======================================================================
-// 🚀 MOTOR GLOBAL DE ESCUTA: GATILHO COMPORTAMENTAL SEGURO PARA TROCA DE UF
+// 🌐 PROCESSADOR GLOBAL ESTÁTICO DE FILTROS (NUNCA É DELETADO DA MEMÓRIA)
 // =======================================================================
-document.addEventListener("change", function(evento) {
-  // Intercepta especificamente o momento em que o operador altera o combobox de UF
-  if (evento.target && evento.target.id === "filtroUF") {
-    const valorSelecionado = evento.target.value;
+window.processarRespostaFiltrosGlobais = function(resposta) {
+  const selectTransp = document.getElementById("filtroTransp");
+  const selectOperador = document.getElementById("filtroOperador");
+  const terminal = document.getElementById("terminalMonitor");
+
+  if (resposta && resposta.success) {
     
-    // Se o operador limpou o campo ou selecionou a opção vazia, não faz nada
-    if (!valorSelecionado) return;
+    // 🔥 GATILHO INFALÍVEL: Dispara sempre porque a função nunca é destruída!
+    if (resposta.avisoFiltro && resposta.avisoFiltro !== "") {
+      mostrarToastAviso(resposta.avisoFiltro);
+    }
+
+    const nomeEmpresaDoUsuario = (localStorage.getItem("user_empresa") || "").toString().trim().toUpperCase();
     
-    console.log(`[EVENTO] Troca de UF detectada globalmente para: ${valorSelecionado}`);
+    // 1. POPULA E VALIDA O COMBO DE TRANSPORTADORA
+    if (selectTransp) {
+      if (PERFIL_FILTRO_DASHBOARD === "TRANSPORTADOR" && nomeEmpresaDoUsuario) {
+        selectTransp.innerHTML = `<option value="${nomeEmpresaDoUsuario}" selected>${nomeEmpresaDoUsuario}</option>`;
+        selectTransp.disabled = true;
+      } else {
+        selectTransp.innerHTML = '<option value="" selected>TODAS</option>';
+        if (resposta.transportadoras && resposta.transportadoras.length > 0) {
+          resposta.transportadoras.forEach(t => {
+            selectTransp.innerHTML += `<option value="${t}">${t.toUpperCase()}</option>`;
+          });
+        }
+        selectTransp.disabled = false;
+      }
+    }
     
-    // Força a execução limpa da rotina mestre de rede e destruição de escopo anterior
-    setTimeout(function() {
-      alternarBarramentoEAtivarFiltros();
-    }, 50);
+    // 2. POPULA E VALIDA O COMBO DE OPERADOR LOGÍSTICO
+    if (selectOperador) {
+      if (PERFIL_FILTRO_DASHBOARD === "OPERADOR" && nomeEmpresaDoUsuario) {
+        selectOperador.innerHTML = `<option value="${nomeEmpresaDoUsuario}" selected>${nomeEmpresaDoUsuario}</option>`;
+        selectOperador.disabled = true;
+      } else {
+        selectOperador.innerHTML = '<option value="" selected>TODOS</option>';
+        if (resposta.operadores && resposta.operadores.length > 0) {
+          resposta.operadores.forEach(o => {
+            selectOperador.innerHTML += `<option value="${o}">${o.toUpperCase()}</option>`;
+          });
+        }
+        selectOperador.disabled = false;
+      }
+    }
+    
+    // RENDERIZA OS INDICADORES DE TOPO (KPIs)
+    const elKpiTotal = document.getElementById("kpiTotalRomaneios");
+    const elKpiConcluidos = document.getElementById("kpiConcluidos");
+    const elKpiParciais = document.getElementById("kpiParciais");
+    const elKpiPendentes = document.getElementById("kpiPendentes");
+    
+    if (elKpiTotal) elKpiTotal.innerText = resposta.kpiTotal || 0;
+    if (elKpiConcluidos) elKpiConcluidos.innerText = resposta.kpiConcluidos || 0;
+    if (elKpiParciais) elKpiParciais.innerText = resposta.kpiParciais || 0;
+    if (elKpiPendentes) elKpiPendentes.innerText = resposta.kpiPendentes || 0;
+    
+    if (terminal) {
+      let msgLog = `\n[SUCESSO] -> Sincronismo concluido.`;
+      if (PERFIL_FILTRO_DASHBOARD) {
+        msgLog += ` Perfil ${PERFIL_FILTRO_DASHBOARD} restrito aplicado com sucesso na tela corporativa.`;
+      } else {
+        msgLog += ` Mapeamento de rotas e credenciais finalizado com sucesso.`;
+      }
+      terminal.value += msgLog;
+      terminal.value += `\n[MÉTRICAS] -> Total de ${resposta.kpiTotal || 0} Romaneios identificados na regional.`;
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+  } else {
+    // Fallback de limpeza em caso de falha de dados
+    document.getElementById("kpiTotalRomaneios").innerText = "0";
+    document.getElementById("kpiConcluidos").innerText = "0";
+    document.getElementById("kpiParciais").innerText = "0";
+    document.getElementById("kpiPendentes").innerText = "0";
+    if (selectTransp) { selectTransp.innerHTML = '<option value="" selected>TODAS</option>'; selectTransp.disabled = false; }
+    if (selectOperador) { selectOperador.innerHTML = '<option value="" selected>TODOS</option>'; selectOperador.disabled = false; }
   }
-});
+};
 
 		
     </script>
